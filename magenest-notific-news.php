@@ -22,7 +22,7 @@ if (!defined('NOTIFICNEWS_PATH'))
 
 // Plugin Folder URL
 if (!defined('NOTIFICNEWS_URL'))
-    define('NOTIFICNEWS_URL', plugins_url('magenest-notific-news', 'magenest-notific-news.php'));
+    define('NOTIFICNEWS_URL', plugins_url('notific-news-post', 'magenest-notific-news.php'));
 
 // Plugin Root File
 if (!defined('NOTIFICNEWS_FILE'))
@@ -39,6 +39,7 @@ class MAGENEST_NOTIFIC_NEWS{
         add_action('wp_enqueue_scripts', array($this,'addStyles'));
         add_action('wp_enqueue_scripts', array($this,'addScripts'));
         add_action('save_post', array('ADMIN_SETTINGS','save_table_notific_news'), 10, 2);
+        add_filter('wp_nav_menu_objects', array('ADMIN_SETTINGS','insert_notific'), 1);
         //add_action('wp_enqueue_scripts', array($this,'load_custom_scripts'));
         if (is_admin ()) {
             add_action ( 'admin_enqueue_scripts', array ($this,'load_admin_scripts' ), 99 );
@@ -60,8 +61,9 @@ class MAGENEST_NOTIFIC_NEWS{
         $prefix = $wpdb->prefix;
         $query = "CREATE TABLE IF NOT EXISTS `{$prefix}magenest_notific_new` (
 			  `id` int(11) NOT NULL AUTO_INCREMENT,
-			  `user_id` int(11) NOT NULL,
-			  `post_id` varchar(255) NULL,
+			  `user_id` int(11) NULL,
+			  `post_id` int(11) NULL,
+			  `term_id` int(11) NULL ,
 			  PRIMARY KEY (`id`)
 			) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 			";
@@ -87,6 +89,7 @@ class MAGENEST_NOTIFIC_NEWS{
         wp_enqueue_script('jquery-ui-core');
         wp_enqueue_script('	jquery-ui-datepicker');
         wp_enqueue_script('jquery-ui-widget');
+        wp_enqueue_style('magenestnotific' , NOTIFICNEWS_URL .'/assets/style.css');
     }
 
     public function load_admin_scripts($hook){

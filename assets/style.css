@@ -1,0 +1,19 @@
+
+.bluebell-primary-menu .menu-item-has-children .notific_new {
+    display: block;
+    /* opacity: 0; */
+    height: 0;
+    transition: all 500ms;
+    overflow: hidden;
+    background-color: #;
+}
+.bluebell-primary-menu .menu-item-has-children:hover .notific_new {
+
+    display: block;
+    height: auto;
+    opacity: 1;
+
+}
+.bluebell-primary-menu .menu-item-has-children .notific_new a{
+    font-size: 13px;
+}
