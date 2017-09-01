@@ -5,15 +5,22 @@
     height: 0;
     transition: all 500ms;
     overflow: hidden;
-    background-color: #;
+    color: #800517;
+    background-color: #6898ad;
+    margin: 10px 2px;
+    padding-left: 10px;
+    font-size:18px;
 }
 .bluebell-primary-menu .menu-item-has-children:hover .notific_new {
-
+    background-color: #6898ad;
     display: block;
-    height: auto;
     opacity: 1;
+    height: 300px;
+    overflow-y: scroll;
+    overflow-x: hidden;
 
 }
 .bluebell-primary-menu .menu-item-has-children .notific_new a{
     font-size: 13px;
+    color: black;
 }

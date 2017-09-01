@@ -6,9 +6,30 @@ class ADMIN_SETTINGS{
     }
     public function index(){
         if(isset($_POST['btnSubmit'])){
-            $number_date = isset($_POST['date'])?$_POST['date']:0;
+            $number_date = isset($_POST['date'])?$_POST['date']:5;
             update_option('numberdate',$number_date);
-            echo 'data saved';
+	    $users = get_users( array( 'fields' => array( 'ID' ) ) );
+            if(isset($number_date)) {
+            $all_post = get_posts(array(
+                'numberposts' => -1,
+                'post_status' => 'publish',
+                'orderby' => 'date',
+                'order' => 'DESC',
+                'date_query' => array(
+                    'column' => 'post_date',
+                    'after' => '- ' . $number_date . ' days'
+                )));
+             }
+             foreach ($all_post as $a_post){
+		    $data[$i] = $a_post->ID;
+		    $i++;
+	     }
+
+	     $strdata = implode(' ', $data);
+	     foreach ($users as $user){
+		    update_user_meta($user->ID, 'post_id_seen', $strdata);
+	     }
+	     echo 'data saved';
         }
         $number = get_option('numberdate');
 ?>
@@ -19,26 +40,39 @@ class ADMIN_SETTINGS{
         </form>
 <?php
     }
-    public function save_table_notific_news($post_id, $post){
-        $postcat = get_the_category( $post_id );
-        $term_id = $postcat[0]->term_id;
-        if(isset($term_id)){
-            global $wpdb;
-            $userTbl = $wpdb->prefix.'users';
-            $notific_newTbl = $wpdb->prefix.'magenest_notific_new';
-            $sql = 'SELECT ID FROM '.$userTbl;
-            $results = $wpdb->get_results($sql, ARRAY_A);
-            foreach ($results as $result){
-                $data = array('user_id' => $result['ID'], 'post_id' => $post_id, 'term_id' => $term_id);
-                $wpdb->insert($notific_newTbl,$data);
-            }
-        }
-    }
-    public function insert_notific(){
-        global $wpdb;
-        $notific_newTbl = $wpdb->prefix.'magenest_notific_new';
+    public function save_table_notific_news(){
+        $data = array();
+        $i=0;
 
-        $args = array( 'theme_location' => 'primary', 'menu_class' => 'bluebell-primary-menu' );
+        $users = get_users( array( 'fields' => array( 'ID' ) ) );
+
+        $number_date = get_option('numberdate');
+        if(isset($number_date)) {
+            $all_post = get_posts(array(
+                'numberposts' => -1,
+                'post_status' => 'publish',
+                'orderby' => 'date',
+                'order' => 'DESC',
+                'date_query' => array(
+                    'column' => 'post_date',
+                    'after' => '- ' . $number_date . ' days'
+                )));
+        }
+
+        foreach ($all_post as $a_post){
+            $data[$i] = $a_post->ID;
+            $i++;
+        }
+
+        $strdata = implode(' ', $data);
+        foreach ($users as $user){
+            update_user_meta($user->ID, 'post_id_seen', $strdata);
+        }
+        //update_user_meta( $user_id, $meta_key, $meta_value, $prev_value );
+            //$postcat = get_the_category($post->ID);
+    }
+    public function insert_notific( $nav_menu, $args ){
+
         static $menu_id_slugs = array();
 
         $defaults = array( 'menu' => '', 'container' => 'div', 'container_class' => '', 'container_id' => '', 'menu_class' => 'menu', 'menu_id' => '',
@@ -51,6 +85,7 @@ class ADMIN_SETTINGS{
             // invalid value, fall back to default.
             $args['item_spacing'] = $defaults['item_spacing'];
         }
+        
         $args = apply_filters( 'wp_nav_menu_args', $args );
         $args = (object) $args;
         $nav_menu = apply_filters( 'pre_wp_nav_menu', null, $args );
@@ -89,6 +124,26 @@ class ADMIN_SETTINGS{
         // If the menu exists, get its items.
         if ( $menu && ! is_wp_error($menu) && !isset($menu_items) )
             $menu_items = wp_get_nav_menu_items( $menu->term_id, array( 'update_post_term_cache' => false ) );
+
+        if ( ( !$menu || is_wp_error($menu) || ( isset($menu_items) && empty($menu_items) && !$args->theme_location ) )
+            && isset( $args->fallback_cb ) && $args->fallback_cb && is_callable( $args->fallback_cb ) )
+            return call_user_func( $args->fallback_cb, (array) $args );
+
+        if ( ! $menu || is_wp_error( $menu ) )
+            return false;
+
+        $nav_menu = $items = '';
+
+        $show_container = false;
+        if ( $args->container ) {
+            $allowed_tags = apply_filters( 'wp_nav_menu_container_allowedtags', array( 'div', 'nav' ) );
+            if ( is_string( $args->container ) && in_array( $args->container, $allowed_tags ) ) {
+                $show_container = true;
+                $class = $args->container_class ? ' class="' . esc_attr( $args->container_class ) . '"' : ' class="menu-'. $menu->slug .'-container"';
+                $id = $args->container_id ? ' id="' . esc_attr( $args->container_id ) . '"' : '';
+                $nav_menu .= '<'. $args->container . $id . $class . '>';
+            }
+        }
         
         // Set up the $menu_item variables
         _wp_menu_item_classes_by_context( $menu_items );
@@ -96,51 +151,52 @@ class ADMIN_SETTINGS{
         $sorted_menu_items = $menu_items_with_children = array();
 
         $number_date = get_option('numberdate');
-//        if(isset($number_date)) {
-//            $posts = get_posts(array(
-//                'numberposts' => -1,
-//                'post_status' => 'publish',
-//                'orderby' => 'date',
-//                'order' => 'DESC',
-//                'date_query' => array(
-//                    'column' => 'post_date',
-//                    'after' => '- ' . $number_date . ' days'  // -7 Means last 7 days
-//                )));
-//            $number = '('.count($posts).')';
-//        }
-//
-        //global $post;
-        $number2 = 0;
-        $form = "</a><ul class='notific_new'>";
-        foreach ( (array) $menu_items as $menu_item ) {
-            $user_id = get_current_user_id();
-            if($menu_item->object == 'category' && $menu_item->type == 'taxonomy'){//term_id='.$menu_item->object_id;
-                $sql = 'SELECT * FROM '.$notific_newTbl.' WHERE user_id='.$user_id.' AND term_id='.$menu_item->object_id;
-                $news = $wpdb->get_results($sql, ARRAY_A); $number1 = 0;
-                foreach ($news as $new){
-                    $number1 = count($news);
-                    $item = "<li class='items'><a href='".get_permalink($new['post_id'])."'>".get_the_title($new['post_id'])."</a></li>";
-                }
 
-                $form .= $item;
-                $number2 += $number1;
-                $parent = $menu_item->menu_item_parent;
+        $number2 = 0;
+        $count = 0;
+        $form = "</a><ul class='notific_new'><li>The articles you haven't read</li>";
+        if(isset($number_date)) {
+            $posts = get_posts(array(
+                'numberposts' => -1,
+                'post_status' => 'publish',
+                'orderby' => 'date',
+                'order' => 'DESC',
+                'date_query' => array(
+                    'column' => 'post_date',
+                    'after' => '- ' . $number_date . ' days'  // -7 Means last 7 days
+                )));
+        }
+        $user_id = get_current_user_id();
+        foreach ($posts as $post){
+            $strdata = get_user_meta($user_id, 'post_id_seen');
+            if(isset($strdata)){
+                $data = explode(' ', $strdata[0]);
+                foreach ($data as $value => $key){
+                    if($key == $post->ID){
+                        $postcat = get_the_category($post->ID);
+                        $post_term_id = $postcat[0]->term_id;
+                        foreach ( (array) $menu_items as $menu_item ) {
+                            if($post_term_id == $menu_item->object_id){
+                                $count++;// onclick='insertDatabase(".$post->ID.")'
+				$url = get_permalink($post->ID);
+                                $item = "<li class='items'><span style='display: none;' id='".$post->ID."'>".get_permalink($post->ID)."</span><a href='#'  onclick='insertDatabase(".$post->ID.")'>-> ".get_the_title($post->ID)."</a></li>";
+                                $parent = $menu_item->menu_item_parent;
+                            }
+                        }
+                        $form .= $item;
+                    }
+                }
             }
         }
         $form .= "</ul><a>";
         foreach ( (array) $menu_items as $menu_item ) {
-
-            //$sql = 'SELECT * FROM '.$notific_newTbl.' WHERE term_id=';
             $sorted_menu_items[ $menu_item->menu_order ] = $menu_item;
-
             if ( $menu_item->menu_item_parent ){
                 $menu_items_with_children[ $menu_item->menu_item_parent ] = true;
             }elseif($menu_item->ID == $parent){
-                $menu_item->title = "<span>$menu_item->title"."($number2)</span>".$form;
+                $menu_item->title = "<span>$menu_item->title"."(<span id='count_notific'>$count</span>)</span>".$form;
             }
-
         }
-
         // Add the menu-item-has-children class where applicable
         if ( $menu_items_with_children ) {
             foreach ( $sorted_menu_items as &$menu_item ) {
@@ -149,6 +205,42 @@ class ADMIN_SETTINGS{
             }
         }
         unset( $menu_items, $menu_item );
-        return $sorted_menu_items;
+
+        $sorted_menu_items = apply_filters( 'wp_nav_menu_objects', $sorted_menu_items, $args );
+
+        $items .= walk_nav_menu_tree( $sorted_menu_items, $args->depth, $args );
+        unset($sorted_menu_items);
+
+        // Attributes
+        if ( ! empty( $args->menu_id ) ) {
+            $wrap_id = $args->menu_id;
+        } else {
+            $wrap_id = 'menu-' . $menu->slug;
+            while ( in_array( $wrap_id, $menu_id_slugs ) ) {
+                if ( preg_match( '#-(\d+)$#', $wrap_id, $matches ) )
+                    $wrap_id = preg_replace('#-(\d+)$#', '-' . ++$matches[1], $wrap_id );
+                else
+                    $wrap_id = $wrap_id . '-1';
+            }
+        }
+        $menu_id_slugs[] = $wrap_id;
+
+        $wrap_class = $args->menu_class ? $args->menu_class : '';
+        
+        $items = apply_filters( 'wp_nav_menu_items', $items, $args );
+        
+        $items = apply_filters( "wp_nav_menu_{$menu->slug}_items", $items, $args );
+
+        // Don't print any markup if there are no items at this point.
+        if ( empty( $items ) )
+            return false;
+
+        $nav_menu .= sprintf( $args->items_wrap, esc_attr( $wrap_id ), esc_attr( $wrap_class ), $items );
+        unset( $items );
+
+        if ( $show_container )
+            $nav_menu .= '</' . $args->container . '>';
+        
+        return $nav_menu;
     }
 }
